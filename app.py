@@ -1,6 +1,7 @@
 
 import streamlit as st
 import pandas as pd
+import re
 
 st.title("Compare Rekening Koran vs Invoice - Versi Final dengan Output 10 Kolom")
 
@@ -17,22 +18,32 @@ if file1 and file2:
     df1 = pd.read_excel(file1)
     df1["Post Date"] = pd.to_datetime(df1["Post Date"], dayfirst=True, errors='coerce')
     df1 = df1.dropna(subset=["Post Date", "Amount"])
-    df1["Tanggal"] = df1["Post Date"].dt.date
 
     # Filter hanya baris dengan Branch = UNIT E-CHANNEL dan Amount > 100 juta
     df1_filtered = df1[(df1["Branch"].str.contains("UNIT E-CHANNEL", na=False)) & (df1["Amount"] > 100_000_000)].copy()
+
+    # --- Ekstrak tanggal dari kolom Description ---
+    def extract_trx_date(text):
+        if pd.isnull(text):
+            return None
+        match = re.search(r'TRX TGL ([0-9]{2} [A-Z]{3}(?:-[0-9]{2} [A-Z]{3})? [0-9]{4})', text)
+        if match:
+            return match.group(1)
+        return None
+
+    df1_filtered["Tanggal"] = df1_filtered["Description"].apply(extract_trx_date)
 
     # --- Baca Data 2 ---
     df2 = pd.read_excel(file2)
     df2["TANGGAL INVOICE"] = pd.to_datetime(df2["TANGGAL INVOICE"], errors='coerce')
     df2 = df2.dropna(subset=["TANGGAL INVOICE", "HARGA"])
-    df2["Tanggal"] = df2["TANGGAL INVOICE"].dt.date
+    df2["Tanggal"] = df2["TANGGAL INVOICE"].dt.strftime("%d %b %Y").str.upper()
 
-    # --- Jumlahkan HARGA per tanggal ---
+    # --- Jumlahkan HARGA per tanggal invoice ---
     df2_grouped = df2.groupby("Tanggal")["HARGA"].sum().reset_index()
 
-    # --- Gabungkan jumlah invoice ke df1_filtered sesuai tanggal ---
-    df1_filtered = df1_filtered.merge(df2_grouped, on="Tanggal", how="left")
+    # --- Gabungkan jumlah invoice ke df1_filtered sesuai tanggal yang di-extract dari Description ---
+    df1_filtered = df1_filtered.merge(df2_grouped, left_on="Tanggal", right_on="Tanggal", how="left")
     df1_filtered["HARGA"] = df1_filtered["HARGA"].fillna(0)
 
     # --- Hitung selisih per baris ---
