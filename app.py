@@ -1,13 +1,14 @@
+
 import streamlit as st
 import pandas as pd
 
 st.title("Compare Rekening Koran vs Invoice - Versi Final dengan Output 10 Kolom")
 
-# --- Upload File Rekening Koran ---
+# --- Upload File Rekening Koran (Data 1) ---
 st.header("Upload Rekening Koran (Data 1)")
 file1 = st.file_uploader("Upload Excel Rekening Koran", type=["xls", "xlsx"], key="file1")
 
-# --- Upload File Invoice ---
+# --- Upload File Invoice (Data 2) ---
 st.header("Upload Invoice (Data 2)")
 file2 = st.file_uploader("Upload Excel Invoice", type=["xls", "xlsx"], key="file2")
 
