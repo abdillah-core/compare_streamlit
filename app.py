@@ -5,6 +5,11 @@ import re
 
 st.title("Compare Rekening Koran vs Invoice - Versi Final dengan Output 10 Kolom")
 
+# --- Input Periode Rekonsiliasi ---
+st.header("Periode Rekonsiliasi")
+start_date = st.date_input("Tanggal Mulai")
+end_date = st.date_input("Tanggal Selesai")
+
 # --- Upload File Rekening Koran (Data 1) ---
 st.header("Upload Rekening Koran (Data 1)")
 file1 = st.file_uploader("Upload Excel Rekening Koran", type=["xls", "xlsx"], key="file1")
@@ -13,11 +18,14 @@ file1 = st.file_uploader("Upload Excel Rekening Koran", type=["xls", "xlsx"], ke
 st.header("Upload Invoice (Data 2)")
 file2 = st.file_uploader("Upload Excel Invoice", type=["xls", "xlsx"], key="file2")
 
-if file1 and file2:
+if file1 and file2 and start_date and end_date:
     # --- Baca Data 1 ---
     df1 = pd.read_excel(file1)
     df1["Post Date"] = pd.to_datetime(df1["Post Date"], dayfirst=True, errors='coerce')
     df1 = df1.dropna(subset=["Post Date", "Amount"])
+
+    # Filter tanggal Post Date sesuai periode
+    df1 = df1[(df1["Post Date"].dt.date >= start_date) & (df1["Post Date"].dt.date <= end_date)]
 
     # Filter hanya baris dengan Branch = UNIT E-CHANNEL dan Amount > 100 juta
     df1_filtered = df1[(df1["Branch"].str.contains("UNIT E-CHANNEL", na=False)) & (df1["Amount"] > 100_000_000)].copy()
@@ -37,6 +45,10 @@ if file1 and file2:
     df2 = pd.read_excel(file2)
     df2["TANGGAL INVOICE"] = pd.to_datetime(df2["TANGGAL INVOICE"], errors='coerce')
     df2 = df2.dropna(subset=["TANGGAL INVOICE", "HARGA"])
+
+    # Filter tanggal invoice sesuai periode
+    df2 = df2[(df2["TANGGAL INVOICE"].dt.date >= start_date) & (df2["TANGGAL INVOICE"].dt.date <= end_date)]
+
     df2["Tanggal"] = df2["TANGGAL INVOICE"].dt.strftime("%d %b %Y").str.upper()
 
     # --- Jumlahkan HARGA per tanggal invoice ---
@@ -81,4 +93,4 @@ if file1 and file2:
     )
 
 else:
-    st.info("Silakan upload kedua file untuk melanjutkan.")
+    st.info("Silakan upload kedua file dan pilih periode untuk melanjutkan.")
