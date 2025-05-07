@@ -32,9 +32,11 @@ if file1 and file2 and start_date and end_date:
     def extract_trx_date(text):
         if pd.isnull(text):
             return None
-        match = re.search(r'TRX TGL ([0-9]{2} [A-Z]{3})(?:-[0-9]{2} [A-Z]{3})? ([0-9]{4})', text)
-        if match:
-            return f"{match.group(1)} {match.group(2)}"
+        match = re.search(r'TRX TGL ([0-9]{2} [A-Z]{3})', text)
+
+        year_match = re.search(r'([0-9]{4})', text)
+        if match and year_match:
+            return f"{match.group(1)} {year_match.group(1)}"
         return None
 
     df1["Tanggal TRX"] = df1["Description"].apply(extract_trx_date)
@@ -78,7 +80,7 @@ if file1 and file2 and start_date and end_date:
     df_output["Selisih"] = df_output["Amount"] - df_output["Invoice"]
 
     st.header("Hasil Compare Detail (10 Kolom)")
-    st.dataframe(df_output)
+    st.dataframe(df_output.fillna(""))
 
     import io
     output = io.BytesIO()
