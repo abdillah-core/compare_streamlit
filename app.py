@@ -33,7 +33,6 @@ if file1 and file2 and start_date and end_date:
         if pd.isnull(text):
             return None
         match = re.search(r'TRX TGL ([0-9]{2} [A-Z]{3})', text)
-
         year_match = re.search(r'([0-9]{4})', text)
         if match and year_match:
             return f"{match.group(1)} {year_match.group(1)}"
@@ -48,6 +47,7 @@ if file1 and file2 and start_date and end_date:
     df2["Tanggal"] = df2["TANGGAL INVOICE"].dt.strftime("%d %b %Y").str.upper()
     df2_grouped = df2.groupby("Tanggal")["HARGA"].sum().reset_index()
 
+    # Siapkan kolom output kosong
     df_output["Post Date"] = None
     df_output["Branch"] = None
     df_output["Journal No."] = None
@@ -58,6 +58,7 @@ if file1 and file2 and start_date and end_date:
     df_output["Db/Cr"] = None
     df_output["Balance"] = None
 
+    # Isi data dari Data 1
     for idx, row in df_output.iterrows():
         tanggal_row = row["Tanggal"]
         df1_match = df1[df1["Tanggal TRX"] == tanggal_row]
@@ -72,12 +73,15 @@ if file1 and file2 and start_date and end_date:
             df_output.at[idx, "Db/Cr"] = first_match["Db/Cr"]
             df_output.at[idx, "Balance"] = first_match["Balance"]
 
-    df_output = df_output.merge(df2_grouped, on="Tanggal", how="left")
-    df_output["HARGA"] = df_output["HARGA"].fillna(0)
-    df_output["Invoice"] = df_output["HARGA"]
+    # Merge Invoice dari Data 2 TANPA MENGHILANGKAN BARIS
+    df_output = pd.merge(df_output, df2_grouped, on="Tanggal", how="left")
+    df_output["Invoice"] = df_output["HARGA"].fillna(0)
     df_output.drop(columns=["HARGA"], inplace=True)
 
+    # Hitung Selisih
     df_output["Selisih"] = df_output["Amount"] - df_output["Invoice"]
+
+    st.write("Jumlah baris final:", len(df_output))
 
     st.header("Hasil Compare Detail (10 Kolom)")
     st.dataframe(df_output.fillna(""))
