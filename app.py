@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 
@@ -19,8 +18,8 @@ if file1 and file2:
     df1 = df1.dropna(subset=["Post Date", "Amount"])
     df1["Tanggal"] = df1["Post Date"].dt.date
 
-    # Filter hanya baris dengan Branch = UNIT E-CHANNEL
-    df1_filtered = df1[df1["Branch"].str.contains("UNIT E-CHANNEL", na=False)].copy()
+    # Filter hanya baris dengan Branch = UNIT E-CHANNEL dan Amount > 100 juta
+    df1_filtered = df1[(df1["Branch"].str.contains("UNIT E-CHANNEL", na=False)) & (df1["Amount"] > 100_000_000)].copy()
 
     # --- Baca Data 2 ---
     df2 = pd.read_excel(file2)
