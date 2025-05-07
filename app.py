@@ -19,49 +19,46 @@ st.header("Upload Invoice (Data 2)")
 file2 = st.file_uploader("Upload Excel Invoice", type=["xls", "xlsx"], key="file2")
 
 if file1 and file2 and start_date and end_date:
-    # --- Baca Data 1 ---
     df1 = pd.read_excel(file1)
     df1["Post Date"] = pd.to_datetime(df1["Post Date"], dayfirst=True, errors='coerce')
     df1 = df1.dropna(subset=["Post Date", "Amount"])
 
-    # Filter tanggal Post Date sesuai periode
-    df1 = df1[(df1["Post Date"].dt.date >= start_date) & (df1["Post Date"].dt.date <= end_date)]
-
-    # Filter hanya baris dengan Branch = UNIT E-CHANNEL dan Amount > 100 juta
     df1_filtered = df1[(df1["Branch"].str.contains("UNIT E-CHANNEL", na=False)) & (df1["Amount"] > 100_000_000)].copy()
 
-    # --- Ekstrak tanggal dari kolom Description ---
-    def extract_trx_date(text):
+    def extract_start_trx_date(text):
         if pd.isnull(text):
             return None
-        match = re.search(r'TRX TGL ([0-9]{2} [A-Z]{3}(?:-[0-9]{2} [A-Z]{3})? [0-9]{4})', text)
+        match = re.search(r'TRX TGL ([0-9]{2} [A-Z]{3})(?:-[0-9]{2} [A-Z]{3})? ([0-9]{4})', text)
         if match:
-            return match.group(1)
+            return f"{match.group(1)} {match.group(2)}"
         return None
 
-    df1_filtered["Tanggal"] = df1_filtered["Description"].apply(extract_trx_date)
+    df1_filtered["Tanggal"] = df1_filtered["Description"].apply(extract_start_trx_date)
 
-    # --- Baca Data 2 ---
+    def trx_date_in_range(trx_date):
+        try:
+            trx_datetime = pd.to_datetime(trx_date, format="%d %b %Y", errors='coerce')
+            return pd.notnull(trx_datetime) and start_date <= trx_datetime.date() <= end_date
+        except:
+            return False
+
+    df1_filtered = df1_filtered[df1_filtered["Tanggal"].apply(trx_date_in_range)].copy()
+
     df2 = pd.read_excel(file2)
     df2["TANGGAL INVOICE"] = pd.to_datetime(df2["TANGGAL INVOICE"], errors='coerce')
     df2 = df2.dropna(subset=["TANGGAL INVOICE", "HARGA"])
 
-    # Filter tanggal invoice sesuai periode
     df2 = df2[(df2["TANGGAL INVOICE"].dt.date >= start_date) & (df2["TANGGAL INVOICE"].dt.date <= end_date)]
 
     df2["Tanggal"] = df2["TANGGAL INVOICE"].dt.strftime("%d %b %Y").str.upper()
 
-    # --- Jumlahkan HARGA per tanggal invoice ---
     df2_grouped = df2.groupby("Tanggal")["HARGA"].sum().reset_index()
 
-    # --- Gabungkan jumlah invoice ke df1_filtered sesuai tanggal yang di-extract dari Description ---
     df1_filtered = df1_filtered.merge(df2_grouped, left_on="Tanggal", right_on="Tanggal", how="left")
     df1_filtered["HARGA"] = df1_filtered["HARGA"].fillna(0)
 
-    # --- Hitung selisih per baris ---
     df1_filtered["Selisih"] = df1_filtered["Amount"] - df1_filtered["HARGA"]
 
-    # --- Siapkan DataFrame hasil sesuai revisi 10 kolom ---
     output_df = pd.DataFrame()
     output_df["Tanggal"] = df1_filtered["Tanggal"]
     output_df["Post Date"] = df1_filtered["Post Date"]
@@ -77,9 +74,7 @@ if file1 and file2 and start_date and end_date:
     st.header("Hasil Compare Detail (10 Kolom)")
     st.dataframe(output_df)
 
-    # --- Download hasil ke Excel ---
     import io
-
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         output_df.to_excel(writer, index=False, sheet_name='Compare Hasil')
